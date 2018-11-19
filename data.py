@@ -30,8 +30,8 @@ def load_data_from_csv(file_name):
     y_all = raw_data[:][Config.LABELS]
 
 
-    x_all = raw_data[:][Config.FEATURES].astype(np.int64)
-    y_all = raw_data[:][Config.LABELS].astype(np.int64)
+    x_all = raw_data[:][Config.FEATURES].astype(np.uint64)
+    y_all = raw_data[:][Config.LABELS].astype(np.uint64)
 
     # split raw_data into trainning set and test set
     x_train, x_test, y_train, y_test = train_test_split(x_all.values, y_all.values, test_size=Config.test_size)

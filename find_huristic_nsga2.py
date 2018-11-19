@@ -39,7 +39,7 @@ x_train, x_test, y_train, y_test = data.load_data_from_csv(Config.raw_data_path)
 
 
 # Problem definition
-VALID_BITS = 3
+VALID_BITS = 32
 BOUND_LOW, BOUND_UP = 0, 2**(VALID_BITS - 10)
 
 NDIM = len(Config.FEATURES)
@@ -66,8 +66,8 @@ def alloneinit(validbits):
 
 
 def mxkmultibitflip(individual, indpb):
-    mask = 0
     for i in range(len(individual)):
+        mask = 0
         for j in range(0, VALID_BITS - 1):
             if np.random.random() < indpb:
                 mask = (mask | 1) << 1
@@ -85,7 +85,7 @@ def alloneinit(validbits):
 
 def accuracy(individual):
     id_label_dict = defaultdict(list)
-    npmask = np.array(individual)
+    npmask = np.array(individual, dtype=np.uint64)
     masked_x_train = x_train & npmask
     for i in range(masked_x_train.shape[0]):
         id_label_dict[tuple(masked_x_train[i].tolist())].append(tuple((y_train[i]).tolist()))
@@ -105,7 +105,8 @@ def accuracy(individual):
 creator.create("FitnessMin", base.Fitness, weights=(-1.0, 1.0))
 # creator.create("Individual", array.array, typecode='d', fitness=creator.FitnessMin)
 # creator.create("Individual", list, fitness=creator.FitnessMin)
-creator.create("Individual", array.array, typecode='I', fitness=creator.FitnessMin)
+# creator.create("Individual", array.array, typecode=np.int64, fitness=creator.FitnessMin)
+creator.create("Individual", np.ndarray, typecode=np.uint64, fitness=creator.FitnessMin)
 toolbox = base.Toolbox()
 
 
@@ -126,7 +127,7 @@ toolbox.register("select", tools.selNSGA2)
 def main(seed=None):
     random.seed(seed)
 
-    NGEN = 250
+    NGEN = 1000
     MU = 100
     CXPB = 0.9
 
