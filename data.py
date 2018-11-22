@@ -22,16 +22,23 @@ def load_data_from_csv(file_name):
     """
 
     df = pd.read_csv(file_name)
-    raw_data = df.dropna()
-    total_data_num = raw_data.shape[0]
+    df_raw_data = df.dropna()
+    total_data_num = df_raw_data.shape[0]
     print("raw data loaded.")
 
-    x_all = raw_data[:][Config.FEATURES]
-    y_all = raw_data[:][Config.LABELS]
+    # remove drop columns which have same values in all rows
+    cols = list(df_raw_data)
+    nunique = df_raw_data.apply(pd.Series.nunique)
+    cols_to_drop = nunique[nunique == 1].index
+    df_raw_data_remove_trivial = df_raw_data.drop(cols_to_drop, axis=1)
+    df_raw_data_remove_trivial.to_csv('df_raw_data_remove_trivial.csv')
 
+    # x_all = df_raw_data[:][Config.FEATURES]
+    x_all = df_raw_data.drop(Config.LABELS, axis=1)
+    y_all = df_raw_data[:][Config.LABELS]
 
-    x_all = raw_data[:][Config.FEATURES].astype(np.uint64)
-    y_all = raw_data[:][Config.LABELS].astype(np.uint64)
+    x_all = df_raw_data[:][Config.FEATURES].astype(np.uint64)
+    y_all = df_raw_data[:][Config.LABELS].astype(np.uint64)
 
     # split raw_data into trainning set and test set
     x_train, x_test, y_train, y_test = train_test_split(x_all.values, y_all.values, test_size=Config.test_size)
