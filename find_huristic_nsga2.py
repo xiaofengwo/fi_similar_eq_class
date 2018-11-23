@@ -42,7 +42,7 @@ x_train, x_test, y_train, y_test = data.load_data_from_csv(Config.raw_data_path)
 VALID_BITS = 32
 BOUND_LOW, BOUND_UP = 0, 2**(VALID_BITS - 10)
 
-NDIM = len(Config.FEATURES)
+X_train_rows_count, NDIM = x_train.shape
 
 def onemax(individual):
     f1 = individual[0]
@@ -64,17 +64,20 @@ def mxkmultibitflip(individual, indpb, validbits):
 def alloneinit(validbits):
     return 2**(validbits) - 1
 
+def allzeroinit(validbits):
+    return np.uint64(0)
 
 def mxkmultibitflip(individual, indpb):
     for i in range(len(individual)):
-        mask = 0
+        mask = np.uint64(0)
+        one = np.uint64(1)
         for j in range(0, VALID_BITS - 1):
             if np.random.random() < indpb:
-                mask = (mask | 1) << 1
+                mask = (mask | one) << one
             else:
-                mask = mask << 1
+                mask = mask << one
         if np.random.random() < indpb:
-            mask = mask | 1
+            mask = mask | one
         individual[i] = individual[i] ^ mask
     return individual,
 
@@ -111,7 +114,7 @@ toolbox = base.Toolbox()
 
 
 # toolbox.register("attr_bool", random.randint, BOUND_LOW, BOUND_UP)
-toolbox.register("attr_int", alloneinit, VALID_BITS)
+toolbox.register("attr_int", allzeroinit, VALID_BITS)
 toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_int, NDIM)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 

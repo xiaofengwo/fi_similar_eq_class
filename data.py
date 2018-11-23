@@ -22,7 +22,7 @@ def load_data_from_csv(file_name):
     """
 
     df = pd.read_csv(file_name)
-    df_raw_data = df.dropna()
+    df_raw_data = df.dropna(axis=1)
     total_data_num = df_raw_data.shape[0]
     print("raw data loaded.")
 
@@ -34,10 +34,7 @@ def load_data_from_csv(file_name):
     df_raw_data_remove_trivial.to_csv('df_raw_data_remove_trivial.csv')
 
     # x_all = df_raw_data[:][Config.FEATURES]
-    x_all = df_raw_data.drop(Config.LABELS, axis=1)
-    y_all = df_raw_data[:][Config.LABELS]
-
-    x_all = df_raw_data[:][Config.FEATURES].astype(np.uint64)
+    x_all = df_raw_data.drop(Config.LABELS, axis=1).astype(np.uint64)
     y_all = df_raw_data[:][Config.LABELS].astype(np.uint64)
 
     # split raw_data into trainning set and test set

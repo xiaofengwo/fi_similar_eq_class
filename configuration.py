@@ -3,7 +3,7 @@ class Config:
     train_batch_size = 10
     test_batch_size = 1
 
-    raw_data_path = "ch2_train.csv"       # default "data/usdchf-mt4.csv"
+    raw_data_path = "newresult.csv"       # default "data/usdchf-mt4.csv"
     version = "170725-0.003"
     # model save and restore
     model_save_path = "save/model/model.ckpt"
