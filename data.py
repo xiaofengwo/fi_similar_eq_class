@@ -11,6 +11,14 @@ FEATURES = Config.FEATURES
 LABELS = Config.LABELS
 
 
+def inner_join_result_and_machine_states(result_filename, machine_states_filename, results_with_machine_states_filename):
+    df_results = pd.read_csv(result_filename, sep=' ')
+    df_machine_states = pd.read_csv(machine_states_filename, sep=',')
+    df_results_with_machine_states = pd.concat([df_machine_states, df_results], axis=1, join='inner')
+    df_results_with_machine_states.to_csv(results_with_machine_states_filename)
+    return df_results_with_machine_states
+
+
 def load_data_from_csv(file_name):
 
     """
@@ -26,7 +34,7 @@ def load_data_from_csv(file_name):
     total_data_num = df_raw_data.shape[0]
     print("raw data loaded.")
 
-    # remove drop columns which have same values in all rows
+    # drop columns which have same values in all rows
     cols = list(df_raw_data)
     nunique = df_raw_data.apply(pd.Series.nunique)
     cols_to_drop = nunique[nunique == 1].index

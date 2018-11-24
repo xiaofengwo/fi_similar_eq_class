@@ -35,11 +35,13 @@ from configuration import Config
 from collections import defaultdict
 from collections import Counter
 
-x_train, x_test, y_train, y_test = data.load_data_from_csv(Config.raw_data_path)
 
+# prepare data
+df_results_with_machine_states = data.inner_join_result_and_machine_states(Config.results_path, Config.machine_states_path, Config.results_with_machine_states_path)
+x_train, x_test, y_train, y_test = data.load_data_from_csv(Config.results_with_machine_states_path)
 
 # Problem definition
-VALID_BITS = 32
+VALID_BITS = 8
 BOUND_LOW, BOUND_UP = 0, 2**(VALID_BITS - 10)
 
 X_train_rows_count, NDIM = x_train.shape
@@ -181,7 +183,9 @@ def main(seed=None):
 
         # Select the next generation population
         pop = toolbox.select(pop + offspring, MU)
-        print(pop)
+
+        front = numpy.array([ind.fitness.values for ind in pop])
+        print(front)
         record = stats.compile(pop)
         logbook.record(gen=gen, evals=len(invalid_ind), **record)
         print(logbook.stream)
@@ -208,6 +212,7 @@ if __name__ == "__main__":
     import numpy
 
     front = numpy.array([ind.fitness.values for ind in pop])
+
     # optimal_front = numpy.array(optimal_front)
     # plt.scatter(optimal_front[:,0], optimal_front[:,1], c="r")
     plt.scatter(front[:,0], front[:,1], c="b")
