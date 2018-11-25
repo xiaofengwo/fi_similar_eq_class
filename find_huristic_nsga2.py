@@ -41,7 +41,7 @@ df_results_with_machine_states = data.inner_join_result_and_machine_states(Confi
 x_train, x_test, y_train, y_test = data.load_data_from_csv(Config.results_with_machine_states_path)
 
 # Problem definition
-VALID_BITS = 8
+VALID_BITS = 64
 BOUND_LOW, BOUND_UP = 0, 2**(VALID_BITS - 10)
 MASK_BITS_BOUNDS_LIST = []
 X_train_rows_count, NDIM = x_train.shape
@@ -77,6 +77,34 @@ def onemax(individual):
 #         individual[i] = individual[i] ^ mask
 #     return individual,
 
+# def random_mask(bit_bound):
+#     for i in range(NDIM):
+#         mask = np.uint64(0)
+#         one = np.uint64(1)
+#         cur_bit = 0
+#         while cur_bit < MASK_BITS_BOUNDS_LIST[i]:
+#             if np.random.randint(0, 2) == 1:
+#                 mask = mask | one
+#             cur_bit = cur_bit + 1
+#             if cur_bit < MASK_BITS_BOUNDS_LIST[i]:
+#                 mask = mask << one
+#         individual[i] = individual[i] ^ mask
+
+
+# def mxkmultibitflip(individual, indpb):
+#     for i in range(len(individual)):
+#         # mask = random_mask(bit_bound)
+#         mask = np.uint64(0)
+#         one = np.uint64(1)
+#         cur_bit = 0
+#         while cur_bit < MASK_BITS_BOUNDS_LIST[i]:
+#             if np.random.random() < indpb:
+#                 mask = mask | one
+#             cur_bit = cur_bit + 1
+#             if cur_bit < MASK_BITS_BOUNDS_LIST[i]:
+#                 mask = mask << one
+#         individual[i] = individual[i] ^ mask
+#     return individual,
 
 def mxkmultibitflip(individual, indpb):
     for i in range(len(individual)):
@@ -84,15 +112,14 @@ def mxkmultibitflip(individual, indpb):
         mask = np.uint64(0)
         one = np.uint64(1)
         cur_bit = 0
-        while cur_bit < MASK_BITS_BOUNDS_LIST[i]:
-            if np.random.random() < indpb:
+        if np.random.random() < indpb:
+            while cur_bit < MASK_BITS_BOUNDS_LIST[i]:
                 mask = mask | one
-            cur_bit = cur_bit + 1
+                cur_bit = cur_bit + 1
             if cur_bit < MASK_BITS_BOUNDS_LIST[i]:
                 mask = mask << one
         individual[i] = individual[i] ^ mask
     return individual,
-
 
 def alloneinit(validbits):
     return 2**(validbits) - 1
@@ -102,6 +129,21 @@ def allzeroinit(validbits):
 
 def alloneinit(validbits):
     return 2 ** (validbits) - 1
+
+def random_init():
+    init_np_ndarray = np.zeros(NDIM, dtype=np.uint64)
+    for i in range(NDIM):
+        mask = np.uint64(0)
+        # one = np.uint64(1)
+        # cur_bit = 0
+        # while cur_bit < MASK_BITS_BOUNDS_LIST[i]:
+        #     if np.random.randint(0, 2) == 1:
+        #         mask = mask | one
+        #     cur_bit = cur_bit + 1
+        #     if cur_bit < MASK_BITS_BOUNDS_LIST[i]:
+        #         mask = mask << one
+        init_np_ndarray[i] = init_np_ndarray[i] ^ mask
+    return init_np_ndarray
 
 def get_mask_bounds(x_train):
     row_count, col_count = x_train.shape
@@ -150,9 +192,12 @@ creator.create("Individual", np.ndarray, typecode=np.uint64, fitness=creator.Fit
 toolbox = base.Toolbox()
 
 
+
+toolbox.register("random_init", random_init)
 # toolbox.register("attr_bool", random.randint, BOUND_LOW, BOUND_UP)
-toolbox.register("attr_int", allzeroinit, VALID_BITS)
-toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_int, NDIM)
+# toolbox.register("attr_int", allzeroinit, VALID_BITS)
+# toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_int, NDIM)
+toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.random_init)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 toolbox.register("evaluate", accuracy)

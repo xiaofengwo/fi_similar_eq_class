@@ -1,5 +1,5 @@
 class Config:
-    test_size = 0.99
+    test_size = 0.90
     # train_batch_size = 10
     # test_batch_size = 1
 
