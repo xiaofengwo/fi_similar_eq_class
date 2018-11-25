@@ -43,7 +43,7 @@ x_train, x_test, y_train, y_test = data.load_data_from_csv(Config.results_with_m
 # Problem definition
 VALID_BITS = 8
 BOUND_LOW, BOUND_UP = 0, 2**(VALID_BITS - 10)
-
+MASK_BITS_BOUNDS_LIST = []
 X_train_rows_count, NDIM = x_train.shape
 
 def onemax(individual):
@@ -51,17 +51,48 @@ def onemax(individual):
     f2 = sum(individual)
     return f1, f2
 
-def mxkmultibitflip(individual, indpb, validbits):
+# def mxkmultibitflip(individual, indpb, validbits):
+#     for i in range(len(individual)):
+#         for i in range(0, validbits-1):
+#             if np.random.random() < indpb:
+#                 mask = (mask | 1) << 1
+#             else:
+#                 mask = mask << 1
+#         if np.random.random() < indpb:
+#             mask = mask | 1
+#         individual[i] = individual[i] ^ mask
+#     return individual,
+
+# def mxkmultibitflip(individual, indpb):
+#     for i in range(len(individual)):
+#         mask = np.uint64(0)
+#         one = np.uint64(1)
+#         for j in range(0, VALID_BITS - 1):
+#             if np.random.random() < indpb:
+#                 mask = (mask | one) << one
+#             else:
+#                 mask = mask << one
+#         if np.random.random() < indpb:
+#             mask = mask | one
+#         individual[i] = individual[i] ^ mask
+#     return individual,
+
+
+def mxkmultibitflip(individual, indpb):
     for i in range(len(individual)):
-        for i in range(0, validbits-1):
+        # mask = random_mask(bit_bound)
+        mask = np.uint64(0)
+        one = np.uint64(1)
+        cur_bit = 0
+        while cur_bit < MASK_BITS_BOUNDS_LIST[i]:
             if np.random.random() < indpb:
-                mask = (mask | 1) << 1
-            else:
-                mask = mask << 1
-        if np.random.random() < indpb:
-            mask = mask | 1
+                mask = mask | one
+            cur_bit = cur_bit + 1
+            if cur_bit < MASK_BITS_BOUNDS_LIST[i]:
+                mask = mask << one
         individual[i] = individual[i] ^ mask
     return individual,
+
 
 def alloneinit(validbits):
     return 2**(validbits) - 1
@@ -69,23 +100,27 @@ def alloneinit(validbits):
 def allzeroinit(validbits):
     return np.uint64(0)
 
-def mxkmultibitflip(individual, indpb):
-    for i in range(len(individual)):
-        mask = np.uint64(0)
-        one = np.uint64(1)
-        for j in range(0, VALID_BITS - 1):
-            if np.random.random() < indpb:
-                mask = (mask | one) << one
-            else:
-                mask = mask << one
-        if np.random.random() < indpb:
-            mask = mask | one
-        individual[i] = individual[i] ^ mask
-    return individual,
-
-
 def alloneinit(validbits):
     return 2 ** (validbits) - 1
+
+def get_mask_bounds(x_train):
+    row_count, col_count = x_train.shape
+    BIT_BOUND_HIGH = 64
+    BIT_BOUND_LOW = 1
+    appropriate_mask_bit_count_list = []
+    for col_index in range(0, col_count):
+        mask = np.uint64(0xFFFFFFFFFFFFFFFF)
+        one = np.uint64(1)
+        appropriate_mask_bit_count = 0
+        while appropriate_mask_bit_count <= BIT_BOUND_HIGH:
+            x_train_temp = x_train[:, col_index] & mask
+            x_train_temp_unique = np.unique(x_train_temp)
+            if len(x_train_temp_unique) == 1:
+                break
+            mask = mask << one
+            appropriate_mask_bit_count = appropriate_mask_bit_count + 1
+        appropriate_mask_bit_count_list.append(appropriate_mask_bit_count)
+    return appropriate_mask_bit_count_list
 
 
 def accuracy(individual):
@@ -132,7 +167,10 @@ toolbox.register("select", tools.selNSGA2)
 def main(seed=None):
     random.seed(seed)
 
-    NGEN = 1000
+    global MASK_BITS_BOUNDS_LIST
+    MASK_BITS_BOUNDS_LIST = get_mask_bounds(x_train)
+
+    NGEN = 100
     MU = 100
     CXPB = 0.9
 
@@ -185,7 +223,7 @@ def main(seed=None):
         pop = toolbox.select(pop + offspring, MU)
 
         front = numpy.array([ind.fitness.values for ind in pop])
-        print(front)
+        # print(front)
         record = stats.compile(pop)
         logbook.record(gen=gen, evals=len(invalid_ind), **record)
         print(logbook.stream)

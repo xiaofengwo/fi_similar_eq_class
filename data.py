@@ -36,14 +36,15 @@ def load_data_from_csv(file_name):
 
     # drop columns which have same values in all rows
     cols = list(df_raw_data)
-    nunique = df_raw_data.apply(pd.Series.nunique)
-    cols_to_drop = nunique[nunique == 1].index
+    unique_count = df_raw_data.apply(pd.Series.nunique)
+    cols_to_drop = unique_count[unique_count == 1].index
     df_raw_data_remove_trivial = df_raw_data.drop(cols_to_drop, axis=1)
     df_raw_data_remove_trivial.to_csv('df_raw_data_remove_trivial.csv')
+    print(df_raw_data_remove_trivial.shape)
 
     # x_all = df_raw_data[:][Config.FEATURES]
-    x_all = df_raw_data.drop(Config.LABELS, axis=1).astype(np.uint64)
-    y_all = df_raw_data[:][Config.LABELS].astype(np.uint64)
+    x_all = df_raw_data_remove_trivial.drop(Config.LABELS, axis=1).astype(np.uint64)
+    y_all = df_raw_data_remove_trivial[:][Config.LABELS].astype(np.uint64)
 
     # split raw_data into trainning set and test set
     x_train, x_test, y_train, y_test = train_test_split(x_all.values, y_all.values, test_size=Config.test_size)
