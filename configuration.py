@@ -1,15 +1,24 @@
 class Config:
-    test_size = 0.90
+
+
+    max_size = 10000
+    test_size = 0.50
     # train_batch_size = 10
     # test_batch_size = 1
+    indpb = 0.05
+
+    NGEN = 1000
+    MU = 100
+    CXPB = 0.9
+    epoch_size = 1
 
     # machine_states_path = "basicmath/machine_states.out"
     # results_path = "basicmath/results.out"
     # results_with_machine_states_path = "basicmath/results_with_machine_states_path.csv"
 
-    machine_states_path = "data/basicmath100000/machine_states.out"
-    results_path = "data/basicmath100000/results.out"
-    results_with_machine_states_path = "data/basicmath100000/results_with_machine_states_path.csv"
+    machine_states_path = "data/basicmath2e5/machine_states.out"
+    results_path = "data/basicmath2e5/results.out"
+    results_with_machine_states_path = "data/basicmath2e5/results_with_machine_states_path.csv"
 
     raw_data_path = "newresult.csv"       # default "data/usdchf-mt4.csv"
     version = "170725-0.003"

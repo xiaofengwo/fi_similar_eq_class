@@ -19,7 +19,7 @@ def inner_join_result_and_machine_states(result_filename, machine_states_filenam
     return df_results_with_machine_states
 
 
-def load_data_from_csv(file_name):
+def load_data_from_csv(file_name, max_size=None):
 
     """
     Call the load_data_from_csv(file_name) methods, return the batch_data
@@ -45,6 +45,11 @@ def load_data_from_csv(file_name):
     # x_all = df_raw_data[:][Config.FEATURES]
     x_all = df_raw_data_remove_trivial.drop(Config.LABELS, axis=1).astype(np.uint64)
     y_all = df_raw_data_remove_trivial[:][Config.LABELS].astype(np.uint64)
+
+    # if max_size if given, drop the others
+    if max_size is not None:
+        x_all = x_all[: max_size]
+        y_all = y_all[: max_size]
 
     # split raw_data into trainning set and test set
     x_train, x_test, y_train, y_test = train_test_split(x_all.values, y_all.values, test_size=Config.test_size)

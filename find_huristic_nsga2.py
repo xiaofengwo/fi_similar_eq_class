@@ -34,17 +34,20 @@ import data
 from configuration import Config
 from collections import defaultdict
 from collections import Counter
-
+from sklearn.externals import joblib
+import os
+import matplotlib.pyplot as plt
 
 # prepare data
 df_results_with_machine_states = data.inner_join_result_and_machine_states(Config.results_path, Config.machine_states_path, Config.results_with_machine_states_path)
-x_train, x_test, y_train, y_test = data.load_data_from_csv(Config.results_with_machine_states_path)
+x_train, x_test, y_train, y_test = data.load_data_from_csv(Config.results_with_machine_states_path, Config.max_size)
 
 # Problem definition
 VALID_BITS = 64
 BOUND_LOW, BOUND_UP = 0, 2**(VALID_BITS - 10)
 MASK_BITS_BOUNDS_LIST = []
 X_train_rows_count, NDIM = x_train.shape
+
 
 def onemax(individual):
     f1 = individual[0]
@@ -116,19 +119,23 @@ def mxkmultibitflip(individual, indpb):
             while cur_bit < MASK_BITS_BOUNDS_LIST[i]:
                 mask = mask | one
                 cur_bit = cur_bit + 1
-            if cur_bit < MASK_BITS_BOUNDS_LIST[i]:
-                mask = mask << one
-        individual[i] = individual[i] ^ mask
+                if cur_bit < MASK_BITS_BOUNDS_LIST[i]:
+                    mask = mask << one
+            individual[i] = individual[i] ^ mask
     return individual,
+
 
 def alloneinit(validbits):
     return 2**(validbits) - 1
 
+
 def allzeroinit(validbits):
     return np.uint64(0)
 
+
 def alloneinit(validbits):
     return 2 ** (validbits) - 1
+
 
 def random_init():
     init_np_ndarray = np.zeros(NDIM, dtype=np.uint64)
@@ -144,6 +151,7 @@ def random_init():
         #         mask = mask << one
         init_np_ndarray[i] = init_np_ndarray[i] ^ mask
     return init_np_ndarray
+
 
 def get_mask_bounds(x_train):
     row_count, col_count = x_train.shape
@@ -165,13 +173,31 @@ def get_mask_bounds(x_train):
     return appropriate_mask_bit_count_list
 
 
-def accuracy(individual):
+# def accuracy_train(individual):
+#     id_label_dict = defaultdict(list)
+#     npmask = np.array(individual, dtype=np.uint64)
+#     masked_x_train = x_train & npmask
+#     for i in range(masked_x_train.shape[0]):
+#         id_label_dict[tuple(masked_x_train[i].tolist())].append(tuple((y_train[i]).tolist()))
+#
+#     # calculate accuracy
+#     right_predicted = 0
+#     for k in id_label_dict:
+#         label_list = list(id_label_dict[k])
+#         result = Counter(label_list)
+#         right_predicted = right_predicted + max(list(result.values()))
+#     eq_accuracy = right_predicted / x_train.shape[0]
+#
+#     num_eq_class = len(id_label_dict)
+#
+#     return num_eq_class, eq_accuracy
+
+def accuracy_train(individual):
     id_label_dict = defaultdict(list)
     npmask = np.array(individual, dtype=np.uint64)
-    masked_x_train = x_train & npmask
-    for i in range(masked_x_train.shape[0]):
-        id_label_dict[tuple(masked_x_train[i].tolist())].append(tuple((y_train[i]).tolist()))
-
+    masked_x = x_train & npmask
+    for i in range(masked_x.shape[0]):
+        id_label_dict[tuple(masked_x[i].tolist())].append(tuple((y_train[i]).tolist()))
     # calculate accuracy
     right_predicted = 0
     for k in id_label_dict:
@@ -179,10 +205,26 @@ def accuracy(individual):
         result = Counter(label_list)
         right_predicted = right_predicted + max(list(result.values()))
     eq_accuracy = right_predicted / x_train.shape[0]
-
     num_eq_class = len(id_label_dict)
-
     return num_eq_class, eq_accuracy
+
+
+def accuracy_test(individual):
+    id_label_dict = defaultdict(list)
+    npmask = np.array(individual, dtype=np.uint64)
+    masked_x = x_test & npmask
+    for i in range(masked_x.shape[0]):
+        id_label_dict[tuple(masked_x[i].tolist())].append(tuple((y_test[i]).tolist()))
+    # calculate accuracy
+    right_predicted = 0
+    for k in id_label_dict:
+        label_list = list(id_label_dict[k])
+        result = Counter(label_list)
+        right_predicted = right_predicted + max(list(result.values()))
+    eq_accuracy = right_predicted / x_test.shape[0]
+    num_eq_class = len(id_label_dict)
+    return num_eq_class, eq_accuracy
+
 
 creator.create("FitnessMin", base.Fitness, weights=(-1.0, 1.0))
 # creator.create("Individual", array.array, typecode='d', fitness=creator.FitnessMin)
@@ -191,8 +233,6 @@ creator.create("FitnessMin", base.Fitness, weights=(-1.0, 1.0))
 creator.create("Individual", np.ndarray, typecode=np.uint64, fitness=creator.FitnessMin)
 toolbox = base.Toolbox()
 
-
-
 toolbox.register("random_init", random_init)
 # toolbox.register("attr_bool", random.randint, BOUND_LOW, BOUND_UP)
 # toolbox.register("attr_int", allzeroinit, VALID_BITS)
@@ -200,25 +240,40 @@ toolbox.register("random_init", random_init)
 toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.random_init)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
-toolbox.register("evaluate", accuracy)
+toolbox.register("evaluate", accuracy_train)
 # register the crossover operator
 toolbox.register("mate", tools.cxTwoPoint)
 # flip each attribute/gene of 0.05
-toolbox.register("mutate", mxkmultibitflip, indpb=0.05)
+toolbox.register("mutate", mxkmultibitflip, indpb=Config.indpb)
 toolbox.register("select", tools.selNSGA2)
 # toolbox.register("select", tools.selSPEA2)
 
 
-def main(seed=None):
-    random.seed(seed)
+def plot_front(pop):
+    # plot train_parato_front
+    train_pareto_front = numpy.array([ind.fitness.values for ind in pop])
+    plt.scatter(train_pareto_front[:, 0], train_pareto_front[:, 1], c="b")
 
+    # plot train_parato_front
+    test_fitnesses = test(pop)
+    test_pareto_front = np.array(test_fitnesses)
+    plt.scatter(test_pareto_front[:, 0], test_pareto_front[:, 1], c="r")
+    sorted_test_pareto_front = np.sort(test_pareto_front, axis=0)
+    print(sorted_test_pareto_front)
+
+    # plot diff
+    diff_parato_front = test_pareto_front - train_pareto_front
+
+    plt.scatter(diff_parato_front[:, 0], diff_parato_front[:, 1], c="g")
+
+    plt.axis("tight")
+    plt.show()
+
+
+def train(seed=None):
+    random.seed(seed)
     global MASK_BITS_BOUNDS_LIST
     MASK_BITS_BOUNDS_LIST = get_mask_bounds(x_train)
-
-    NGEN = 100
-    MU = 100
-    CXPB = 0.9
-
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     # stats.register("avg", numpy.mean, axis=0)
     # stats.register("std", numpy.std, axis=0)
@@ -228,11 +283,22 @@ def main(seed=None):
     logbook = tools.Logbook()
     logbook.header = "gen", "evals", "std", "min", "avg", "max"
 
-    pop = toolbox.population(n=MU)
+    pop = toolbox.population(n=Config.MU)
+
+    if Config.restore_model:
+        try:
+            pop = loadpop(Config.model_save_path)
+            print("model loaded")
+        except FileNotFoundError as fne:
+            print("Model file not found, will train new model...")
+        except Exception as err:
+            print("Model file load error, may be the model file is not exist, will train new model...")
 
     # Evaluate the individuals with an invalid fitness
     invalid_ind = [ind for ind in pop if not ind.fitness.valid]
-    fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+    fitnesses = toolbox.map(toolbox.evaluate,invalid_ind)
+    # fitnesses = toolbox.map(toolbox.evaluate,invalid_ind, len(invalid_ind) * [x_train], len(invalid_ind) * [y_train])
+
     for ind, fit in zip(invalid_ind, fitnesses):
         ind.fitness.values = fit
 
@@ -245,13 +311,13 @@ def main(seed=None):
     print(logbook.stream)
 
     # Begin the generational process
-    for gen in range(1, NGEN):
+    for gen in range(1, Config.NGEN):
         # Vary the population
         offspring = tools.selTournamentDCD(pop, len(pop))
         offspring = [toolbox.clone(ind) for ind in offspring]
 
         for ind1, ind2 in zip(offspring[::2], offspring[1::2]):
-            if random.random() <= CXPB:
+            if random.random() <= Config.CXPB:
                 toolbox.mate(ind1, ind2)
 
             toolbox.mutate(ind1)
@@ -265,16 +331,48 @@ def main(seed=None):
             ind.fitness.values = fit
 
         # Select the next generation population
-        pop = toolbox.select(pop + offspring, MU)
-
-        front = numpy.array([ind.fitness.values for ind in pop])
+        pop = toolbox.select(pop + offspring, Config.MU)
+        # front = numpy.array([ind.fitness.values for ind in pop])
         # print(front)
         record = stats.compile(pop)
         logbook.record(gen=gen, evals=len(invalid_ind), **record)
         print(logbook.stream)
 
+        # print pareto front every 100 round
+        if gen % Config.epoch_size == 0:
+            epoch = gen / Config.epoch_size
+            savepop(pop, "save/model/model_" + str(epoch + 1) + ".ckpt")
+            savepop(pop, "save/model/model.ckpt")
+            plot_front(pop)
+
+
     print("Final population hypervolume is %f" % hypervolume(pop, [11.0, 11.0]))
 
+    return pop, logbook
+
+
+def test(pop):
+    # Evaluate the individuals with an invalid fitness
+    invalid_ind = [ind for ind in pop]
+    fitnesses_map = map(accuracy_test, invalid_ind)
+    fitnesses_list = list(fitnesses_map)
+    return fitnesses_list
+
+
+def savepop(pop, filepath):
+    path, filename = os.path.split(filepath)
+    if not os.path.isdir(path):
+        os.makedirs(path)
+    joblib.dump(pop, filepath)
+
+
+def loadpop(filepath):
+    pop = joblib.load(filepath)
+    return pop
+
+
+def main(seed=None):
+    pop, logbook = train()
     return pop, logbook
 
 
@@ -291,14 +389,11 @@ if __name__ == "__main__":
     # print("Convergence: ", convergence(pop, optimal_front))
     # print("Diversity: ", diversity(pop, optimal_front[0], optimal_front[-1]))
 
-    import matplotlib.pyplot as plt
-    import numpy
-
-    front = numpy.array([ind.fitness.values for ind in pop])
+    front = np.array([ind.fitness.values for ind in pop])
 
     # optimal_front = numpy.array(optimal_front)
     # plt.scatter(optimal_front[:,0], optimal_front[:,1], c="r")
-    plt.scatter(front[:,0], front[:,1], c="b")
+    plt.scatter(front[:, 0], front[:, 1], c="b")
     plt.axis("tight")
     plt.show()
 
