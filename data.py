@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from configuration import Config
+from fi_similar_eq_class.configuration import Config
 import math
 from sklearn.model_selection import train_test_split
 

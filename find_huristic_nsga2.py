@@ -30,13 +30,15 @@ from deap import creator
 from deap import tools
 
 import numpy as np
-import data
-from configuration import Config
+import fi_similar_eq_class.data as data
 from collections import defaultdict
 from collections import Counter
 from sklearn.externals import joblib
 import os
 import matplotlib.pyplot as plt
+
+from fi_similar_eq_class.configuration import Config
+import fi_similar_eq_class.mxkmutate as mxkmutate
 
 # prepare data
 
@@ -60,75 +62,14 @@ def onemax(individual):
     f2 = sum(individual)
     return f1, f2
 
-# def mxkmultibitflip(individual, indpb, validbits):
-#     for i in range(len(individual)):
-#         for i in range(0, validbits-1):
-#             if np.random.random() < indpb:
-#                 mask = (mask | 1) << 1
-#             else:
-#                 mask = mask << 1
-#         if np.random.random() < indpb:
-#             mask = mask | 1
-#         individual[i] = individual[i] ^ mask
-#     return individual,
 
 def mxkmultibitflip(individual, indpb):
-    for i in range(len(individual)):
-        mask = np.uint64(0)
-        one = np.uint64(1)
-        for j in range(0, VALID_BITS - 1):
-            if np.random.random() < indpb:
-                mask = (mask | one) << one
-            else:
-                mask = mask << one
-        if np.random.random() < indpb:
-            mask = mask | one
-        individual[i] = individual[i] ^ mask
-    return individual,
+    if Config.mutate_type == "ALLBITS":
+        new_ind =  mxkmutate.mxkmultibitflip_allbits(individual, indpb, MASK_BITS_BOUNDS_LIST)
+    elif Config.mutate_type == "BITWISE":
+        new_ind = mxkmutate.mxkmultibitflip_bitwise(individual, indpb, MASK_BITS_BOUNDS_LIST)
 
-# def random_mask(bit_bound):
-#     for i in range(NDIM):
-#         mask = np.uint64(0)
-#         one = np.uint64(1)
-#         cur_bit = 0
-#         while cur_bit < MASK_BITS_BOUNDS_LIST[i]:
-#             if np.random.randint(0, 2) == 1:
-#                 mask = mask | one
-#             cur_bit = cur_bit + 1
-#             if cur_bit < MASK_BITS_BOUNDS_LIST[i]:
-#                 mask = mask << one
-#         individual[i] = individual[i] ^ mask
-
-
-# def mxkmultibitflip(individual, indpb):
-#     for i in range(len(individual)):
-#         # mask = random_mask(bit_bound)
-#         mask = np.uint64(0)
-#         one = np.uint64(1)
-#         cur_bit = 0
-#         while cur_bit < MASK_BITS_BOUNDS_LIST[i]:
-#             if np.random.random() < indpb:
-#                 mask = mask | one
-#             cur_bit = cur_bit + 1
-#             if cur_bit < MASK_BITS_BOUNDS_LIST[i]:
-#                 mask = mask << one
-#         individual[i] = individual[i] ^ mask
-#     return individual,
-
-# def mxkmultibitflip(individual, indpb):
-#     for i in range(len(individual)):
-#         # mask = random_mask(bit_bound)
-#         mask = np.uint64(0)
-#         one = np.uint64(1)
-#         cur_bit = 0
-#         if np.random.random() < indpb:
-#             while cur_bit < MASK_BITS_BOUNDS_LIST[i]:
-#                 mask = mask | one
-#                 cur_bit = cur_bit + 1
-#                 if cur_bit < MASK_BITS_BOUNDS_LIST[i]:
-#                     mask = mask << one
-#             individual[i] = individual[i] ^ mask
-#     return individual,
+    return new_ind
 
 
 def alloneinit(validbits):
@@ -255,7 +196,7 @@ toolbox.register("select", tools.selNSGA2)
 # toolbox.register("select", tools.selSPEA2)
 
 
-def plot_front(pop):
+def plot_front(pop, epoch):
     # plot train_parato_front
     train_pareto_front = numpy.array([ind.fitness.values for ind in pop])
     plt.scatter(train_pareto_front[:, 0], train_pareto_front[:, 1], c="b")
@@ -272,7 +213,9 @@ def plot_front(pop):
 
     # plt.scatter(diff_parato_front[:, 0], diff_parato_front[:, 1], c="g")
 
-    plt.axis("tight")
+    plt.axis([0, 500, 0.75, 1.0])
+    saveimage(plt, "save/plt/plt_" + str(epoch + 1) + ".png")
+    saveimage(plt, "save/plt/plt.png")
     plt.show()
 
 
@@ -349,7 +292,8 @@ def train(seed=None):
             epoch = gen / Config.epoch_size
             savepop(pop, "save/model/model_" + str(epoch + 1) + ".ckpt")
             savepop(pop, "save/model/model.ckpt")
-            plot_front(pop)
+            plot_front(pop, epoch)
+            
 
 
     print("Final population hypervolume is %f" % hypervolume(pop, [11.0, 11.0]))
@@ -363,6 +307,13 @@ def test(pop):
     fitnesses_map = map(accuracy_test, invalid_ind)
     fitnesses_list = list(fitnesses_map)
     return fitnesses_list
+
+
+def saveimage(plt, filepath):
+    path, filename = os.path.split(filepath)
+    if not os.path.isdir(path):
+        os.makedirs(path)
+    plt.savefig(filepath)
 
 
 def savepop(pop, filepath):
@@ -400,6 +351,6 @@ if __name__ == "__main__":
     # optimal_front = numpy.array(optimal_front)
     # plt.scatter(optimal_front[:,0], optimal_front[:,1], c="r")
     plt.scatter(front[:, 0], front[:, 1], c="b")
-    plt.axis("tight")
+    plt.axis([0, 500, 0.75, 1.0])
     plt.show()
 
