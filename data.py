@@ -11,13 +11,21 @@ FEATURES = Config.FEATURES
 LABELS = Config.LABELS
 
 
-def inner_join_result_and_machine_states(result_filename, machine_states_filename, results_with_machine_states_filename):
+def merge_result_and_machine_states(result_filename, machine_states_filename, machine_states_with_results_filename):
     df_results = pd.read_csv(result_filename, sep=' ')
     df_machine_states = pd.read_csv(machine_states_filename, sep=',')
-    df_results_with_machine_states = pd.concat([df_machine_states, df_results], axis=1, join='inner')
-    df_results_with_machine_states.to_csv(results_with_machine_states_filename)
-    return df_results_with_machine_states
+    df_machine_states_with_results = pd.merge(df_machine_states, df_results, on='dyn')
+    df_machine_states_with_results.to_csv(machine_states_with_results_filename)
+    return df_machine_states_with_results
 
+def merge_result_and_machine_states_and_prop_his(result_filename, machine_states_filename, prop_his_filename, machine_states_with_prop_his_with_results_filename):
+    df_results = pd.read_csv(result_filename, sep=' ')
+    df_machine_states = pd.read_csv(machine_states_filename, sep=',')
+    df_prop_his = pd.read_csv(prop_his_filename, sep=',')
+    df_machine_states_with_prop_his = pd.merge(df_machine_states, df_prop_his, on='dyn')
+    df_machine_states_with_prop_his_with_results = pd.merge(df_machine_states_with_prop_his, df_results, on='dyn')
+    df_machine_states_with_prop_his_with_results.to_csv(machine_states_with_prop_his_with_results_filename)
+    return df_machine_states_with_prop_his_with_results
 
 def load_data_from_csv(file_name, max_size=None):
 

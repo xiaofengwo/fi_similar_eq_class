@@ -1,5 +1,6 @@
 class Config:
 
+    with_prop_his = True
 
     max_size = 10000
     test_size = 0.50
@@ -16,15 +17,23 @@ class Config:
     # results_path = "basicmath/results.out"
     # results_with_machine_states_path = "basicmath/results_with_machine_states_path.csv"
 
-    machine_states_path = "data/basicmath2e5/machine_states.out"
-    results_path = "data/basicmath2e5/results.out"
-    results_with_machine_states_path = "data/basicmath2e5/results_with_machine_states_path.csv"
+    # machine_states_path = "data/basicmath2e5his/machine_states.out"
+    # results_path = "data/basicmath2e5his/results.out"
+    # results_with_machine_states_path = "data/basicmath2e5his/results_with_machine_states_path.csv"
+    # machine_states_with_prop_his_with_results_path = "data/basicmath2e5his/machine_states_with_prop_his_with_results.csv"
+    # prop_his_path = 'data/basicmath2e5his/prop_his.out'
+
+    machine_states_path = "data/basicmath1e4his/machine_states.out"
+    results_path = "data/basicmath1e4his/results.out"
+    results_with_machine_states_path = "data/basicmath1e4his/results_with_machine_states_path.csv"
+    machine_states_with_prop_his_with_results_path = "data/basicmath1e4his/machine_states_with_prop_his_with_results.csv"
+    prop_his_path = 'data/basicmath1e4his/prop_his.out'
 
     raw_data_path = "newresult.csv"       # default "data/usdchf-mt4.csv"
     version = "170725-0.003"
     # model save and restore
     model_save_path = "save/model/model.ckpt"
-    restore_model = True                       # is restore model from model_save_path
+    restore_model = False                       # is restore model from model_save_path
 
     FEATURES = ['dyn', 'ip', 'eax', 'ecx', '[i]', '[a]', '[b]', '[sum]', '[d]', '[b]']       # default ['open', 'high', 'low', 'close', 'volume']
     LABELS = ['result']                           # if prediction_mode = 1, default ['label'], if prediction_mode = 2, default ['ri']

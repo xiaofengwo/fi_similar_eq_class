@@ -39,8 +39,14 @@ import os
 import matplotlib.pyplot as plt
 
 # prepare data
-df_results_with_machine_states = data.inner_join_result_and_machine_states(Config.results_path, Config.machine_states_path, Config.results_with_machine_states_path)
-x_train, x_test, y_train, y_test = data.load_data_from_csv(Config.results_with_machine_states_path, Config.max_size)
+
+if Config.with_prop_his is True:
+    df_results_with_machine_states = data.merge_result_and_machine_states_and_prop_his(Config.results_path, Config.machine_states_path, Config.prop_his_path, Config.machine_states_with_prop_his_with_results_path)
+    x_train, x_test, y_train, y_test = data.load_data_from_csv(Config.machine_states_with_prop_his_with_results_path, Config.max_size)
+else:
+    df_results_with_machine_states = data.merge_result_and_machine_states(Config.results_path, Config.machine_states_path, Config.results_with_machine_states_path)
+    x_train, x_test, y_train, y_test = data.load_data_from_csv(Config.results_with_machine_states_path, Config.max_size)
+
 
 # Problem definition
 VALID_BITS = 64
@@ -66,19 +72,19 @@ def onemax(individual):
 #         individual[i] = individual[i] ^ mask
 #     return individual,
 
-# def mxkmultibitflip(individual, indpb):
-#     for i in range(len(individual)):
-#         mask = np.uint64(0)
-#         one = np.uint64(1)
-#         for j in range(0, VALID_BITS - 1):
-#             if np.random.random() < indpb:
-#                 mask = (mask | one) << one
-#             else:
-#                 mask = mask << one
-#         if np.random.random() < indpb:
-#             mask = mask | one
-#         individual[i] = individual[i] ^ mask
-#     return individual,
+def mxkmultibitflip(individual, indpb):
+    for i in range(len(individual)):
+        mask = np.uint64(0)
+        one = np.uint64(1)
+        for j in range(0, VALID_BITS - 1):
+            if np.random.random() < indpb:
+                mask = (mask | one) << one
+            else:
+                mask = mask << one
+        if np.random.random() < indpb:
+            mask = mask | one
+        individual[i] = individual[i] ^ mask
+    return individual,
 
 # def random_mask(bit_bound):
 #     for i in range(NDIM):
@@ -109,20 +115,20 @@ def onemax(individual):
 #         individual[i] = individual[i] ^ mask
 #     return individual,
 
-def mxkmultibitflip(individual, indpb):
-    for i in range(len(individual)):
-        # mask = random_mask(bit_bound)
-        mask = np.uint64(0)
-        one = np.uint64(1)
-        cur_bit = 0
-        if np.random.random() < indpb:
-            while cur_bit < MASK_BITS_BOUNDS_LIST[i]:
-                mask = mask | one
-                cur_bit = cur_bit + 1
-                if cur_bit < MASK_BITS_BOUNDS_LIST[i]:
-                    mask = mask << one
-            individual[i] = individual[i] ^ mask
-    return individual,
+# def mxkmultibitflip(individual, indpb):
+#     for i in range(len(individual)):
+#         # mask = random_mask(bit_bound)
+#         mask = np.uint64(0)
+#         one = np.uint64(1)
+#         cur_bit = 0
+#         if np.random.random() < indpb:
+#             while cur_bit < MASK_BITS_BOUNDS_LIST[i]:
+#                 mask = mask | one
+#                 cur_bit = cur_bit + 1
+#                 if cur_bit < MASK_BITS_BOUNDS_LIST[i]:
+#                     mask = mask << one
+#             individual[i] = individual[i] ^ mask
+#     return individual,
 
 
 def alloneinit(validbits):
@@ -264,7 +270,7 @@ def plot_front(pop):
     # plot diff
     diff_parato_front = test_pareto_front - train_pareto_front
 
-    plt.scatter(diff_parato_front[:, 0], diff_parato_front[:, 1], c="g")
+    # plt.scatter(diff_parato_front[:, 0], diff_parato_front[:, 1], c="g")
 
     plt.axis("tight")
     plt.show()
