@@ -9,6 +9,7 @@ class TargetProgram:
         self.dynamic_ins_filename = self.output + "/dynamic_instruction.out"
         self.memory_rw_filename = self.output + "/memory_rw_address.out"
         self.prop_his_filename = self.output + "/prop_his.out"
+        self.fi_point_filename = self.output + '/fi_point_opt.out'
         self.detected_fi_point_filename = self.output + "/reliability_analysis/detected/detected_fi_point_opt.out"
         self.unmasked_fi_point_filename = self.output + "/reliability_analysis/unmasked/unmasked_fi_point_opt.out"
         self.unmasked_fi_point_filename_from_basic_error_set = self.output + "/reliability_analysis/unmasked_from_basic_error_set/self.unmasked_from_basic_error_set_fi_point_opt.out"
@@ -28,22 +29,27 @@ class TargetProgram:
 
         self.machine_states_path = self.progdir + "/output/machine_states.out"
         self.results_path = self.progdir + "/output/results.out"
-        self.results_with_machine_states_path = self.progdir + "/fault_similarity_info/results_with_machine_states_path.csv"
+        self.full_space_results_path = self.progdir + "/output/full_space_results.csv"
+        self.results_with_machine_states_path = self.progdir + "/fault_similarity_info/results_with_machine_states.csv"
+        self.full_space_results_with_machine_states_path = self.progdir + "/fault_similarity_info/full_space_results_with_machine_states.csv"
         self.machine_states_with_prop_his_with_results_path = self.progdir + "/fault_similarity_info/machine_states_with_prop_his_with_results.csv"
+
         self.df_raw_data_remove_trivial_path = self.progdir + '/fault_similarity_info/df_raw_data_remove_trivial.csv'
+        self.full_space_csv_file_name = self.progdir + '/fault_similarity_info/full_space_csv.csv'
         self.prop_his_path = self.progdir + "/fault_similarity_info/prop_his.out"
         self.raw_data_path = "newresult.csv"  # default "data/usdchf-mt4.csv"
 
 
 class Config:
-    run_mode = "TRAIN"  # TRAIN TEST TRAIN_TEST
-
+    run_mode = "TEST"  # TRAIN TEST TRAIN_TEST
+    full_space_validation = True
     # data
     need_remerge_tables = True
     using_prop_his = False
     using_selected_features = True
     using_dataflow = True
     max_size = 10000
+    full_space_max_size = 10000000
 
     test_size = 0.5
 
@@ -108,7 +114,8 @@ class Config:
     epoch_size = 10
 
     # model save and restore
-    restore_model = False  # is restore model from model_save_path
+    restore_model = True  # is restore model from model_save_path
+    retrain_model = False
     model_save_path = "save/model/model.ckpt"
 
     # evaluation
@@ -117,43 +124,43 @@ class Config:
     exclusive_base = 0.6
     min_sub_block_size = 1000
 
-    version = "170725-0.003"
+    version = "190528-0.002"
 
     # others
     base_dir = "/home/xiaofengwo/sdb1/fault_injection"
 
     Benchmarks = [
-        # TargetProgram(
-        #     progname='basicmath',
-        #     progdir=base_dir + '/fi_target/ch2_benchmarks/basicmath',
-        # ),
-        #
-        # TargetProgram(  # program output is not same between each running, but these codes have been removed.
-        #     progname='bitcount',
-        #     progdir=base_dir + '/fi_target/ch2_benchmarks/bitcount',
-        # ),
-        # TargetProgram(
-        #     progname='qsort',
-        #     progdir=base_dir + '/fi_target/ch2_benchmarks/qsort',
-        # ),
-        # TargetProgram(
-        #     progname='susan',
-        #     progdir=base_dir + '/fi_target/ch2_benchmarks/susan',
-        # ),
-        #
-        # TargetProgram(
-        #     progname='blowfish',
-        #     progdir=base_dir + '/fi_target/ch2_benchmarks/blowfish',
-        # ),
-        #
-        # TargetProgram(
-        #     progname='dijkstra',
-        #     progdir=base_dir + '/fi_target/ch2_benchmarks/dijkstra',
-        # ),
-        # TargetProgram(
-        #     progname='patricia',
-        #     progdir=base_dir + '/fi_target/ch2_benchmarks/patricia',
-        # ),
+        TargetProgram(
+            progname='basicmath',
+            progdir=base_dir + '/fi_target/ch2_benchmarks/basicmath',
+        ),
+
+        TargetProgram(  # program output is not same between each running, but these codes have been removed.
+            progname='bitcount',
+            progdir=base_dir + '/fi_target/ch2_benchmarks/bitcount',
+        ),
+        TargetProgram(
+            progname='qsort',
+            progdir=base_dir + '/fi_target/ch2_benchmarks/qsort',
+        ),
+        TargetProgram(
+            progname='susan',
+            progdir=base_dir + '/fi_target/ch2_benchmarks/susan',
+        ),
+
+        TargetProgram(
+            progname='blowfish',
+            progdir=base_dir + '/fi_target/ch2_benchmarks/blowfish',
+        ),
+
+        TargetProgram(
+            progname='dijkstra',
+            progdir=base_dir + '/fi_target/ch2_benchmarks/dijkstra',
+        ),
+        TargetProgram(
+            progname='patricia',
+            progdir=base_dir + '/fi_target/ch2_benchmarks/patricia',
+        ),
         TargetProgram(
             progname='FFT',
             progdir=base_dir + '/fi_target/ch2_benchmarks/FFT',

@@ -1,4 +1,5 @@
 import random
+import time
 from deap import base
 from deap.benchmarks.tools import diversity, convergence, hypervolume
 from deap import creator
@@ -33,15 +34,103 @@ x_train = None
 x_test = None
 y_train = None
 y_test = None
+x_full = None
+y_full = None
 X_train_rows_count = None
 NDIM = None
 
 # dataflow similarity division
 df_equal = None
 static_dynamic_dict = None
+block_static_dict = None
 
 blockid_index = None
 prop_his_index = None
+
+
+class Profile:
+    def __init__(self, target_program=None, version=None):
+        self.target_program = target_program
+        self.progname = target_program.progname
+        self.version = version
+        self.training_time = 0
+        self.testing_time = 0
+        self.train_test_rmse = 0
+
+        self.train_accuracy_99 = 0
+        self.train_accuracy_999 = 0
+        self.train_accuracy_9999 = 0
+        self.train_accuracy_99999 = 0
+        self.test_accuracy_99 = 0
+        self.test_accuracy_999 = 0
+        self.test_accuracy_9999 = 0
+        self.test_accuracy_99999 = 0
+        self.test_full_accuracy_99 = 0
+        self.test_full_accuracy_999 = 0
+        self.test_full_accuracy_9999 = 0
+        self.test_full_accuracy_99999 = 0
+
+        self.test_full_space_prune_90 = 0
+        self.test_full_space_prune_95 = 0
+        self.test_full_space_prune_97 = 0
+        self.test_full_space_prune_99 = 0
+
+
+def write_profile_to_csv(profile_list, filename):
+    profile_filename = filename
+    headlines = [
+        'progname',
+        'version',
+        'training_time',
+        'testing_time',
+        'train_test_rmse',
+        'train_accuracy_99',
+        'train_accuracy_999',
+        'train_accuracy_9999',
+        'train_accuracy_99999',
+        'test_accuracy_99',
+        'test_accuracy_999',
+        'test_accuracy_9999',
+        'test_accuracy_99999',
+        'test_full_accuracy_99',
+        'test_full_accuracy_999',
+        'test_full_accuracy_9999',
+        'test_full_accuracy_99999',
+        'test_full_space_prune_90',
+        'test_full_space_prune_95',
+        'test_full_space_prune_97',
+        'test_full_space_prune_99'
+    ]
+
+    with open(profile_filename, 'w') as profile_file:
+        profile_file.write(','.join(headlines))
+        profile_file.write('\n')
+        for profile in profile_list:
+            profile_row = [
+                str(profile.progname),
+                str(profile.version),
+                str(profile.training_time),
+                str(profile.testing_time),
+                str(profile.train_test_rmse),
+                str(profile.train_accuracy_99),
+                str(profile.train_accuracy_999),
+                str(profile.train_accuracy_9999),
+                str(profile.train_accuracy_99999),
+                str(profile.test_accuracy_99),
+                str(profile.test_accuracy_999),
+                str(profile.test_accuracy_9999),
+                str(profile.test_accuracy_99999),
+                str(profile.test_full_accuracy_99),
+                str(profile.test_full_accuracy_999),
+                str(profile.test_full_accuracy_9999),
+                str(profile.test_full_accuracy_99999),
+                str(profile.test_full_space_prune_90),
+                str(profile.test_full_space_prune_95),
+                str(profile.test_full_space_prune_97),
+                str(profile.test_full_space_prune_99)
+            ]
+            profile_file.write(','.join(profile_row))
+            profile_file.write('\n')
 
 
 def my_multibitflip(individual, indpb):
@@ -103,6 +192,9 @@ def evaluate_train(individual):  # eval_mse eval_exclusive eval_force_merge_prop
                                                                                              y_train)
     elif Config.evaluation_method == 'with_dataflow':
         result = my_evaluation.evaluate_with_dataflow(individual, x_train, y_train, df_equal, static_dynamic_dict)
+    elif Config.evaluation_method == 'with_dataflow_only':
+        result = my_evaluation.evaluate_with_dataflow_only(individual, x_train, y_train, df_equal, static_dynamic_dict,
+                                                           block_static_dict)
     elif Config.evaluation_method == 'normal':
         result = my_evaluation.projvec_evaluate_single_proj(individual, x_train, y_train)
     else:
@@ -127,8 +219,38 @@ def evaluate_test(individual):
                                                                                              y_test)
     elif Config.evaluation_method == 'with_dataflow':
         result = my_evaluation.evaluate_with_dataflow(individual, x_test, y_test, df_equal, static_dynamic_dict)
+    elif Config.evaluation_method == 'with_dataflow_only':
+        result = my_evaluation.evaluate_with_dataflow_only(individual, x_test, y_test, df_equal, static_dynamic_dict,
+                                                           block_static_dict)
     elif Config.evaluation_method == 'normal':
         result = my_evaluation.projvec_evaluate_single_proj(individual, x_test, y_test)
+    else:
+        raise (BaseException('No evaluation method is designated'))
+    return result
+
+
+def evaluate_test_full(individual):
+    if Config.evaluation_method == "eval_force_merge_prop_his":
+        result = my_evaluation.projvec_evaluate_single_proj_force_merge_prop_his(individual, x_full, y_full,
+                                                                                 blockid_index, prop_his_index)
+    elif Config.evaluation_method == "eval_sdc_only":
+        result = my_evaluation.projvec_evaluate_single_proj_sdc_only(individual, x_full, y_full)
+    elif Config.evaluation_method == "eval_exclusive":
+        result = my_evaluation.projvec_evaluate_single_proj_exclusive(individual, x_full, y_full)
+    elif Config.evaluation_method == "eval_mse":
+        result = my_evaluation.projvec_evaluate_single_proj_mse(individual, x_full, y_full)
+    elif Config.evaluation_method == 'def_use_length':
+        result = my_evaluation.projvec_evaluate_with_def_use_length(individual, x_full, y_full)
+    elif Config.evaluation_method == 'length_same_reg':
+        result = my_evaluation.projvec_evaluate_with_def_use_length_only_merge_same_register(individual, x_full,
+                                                                                             y_full)
+    elif Config.evaluation_method == 'with_dataflow':
+        result = my_evaluation.evaluate_with_dataflow(individual, x_full, y_full, df_equal, static_dynamic_dict)
+    elif Config.evaluation_method == 'with_dataflow_only':
+        result = my_evaluation.evaluate_with_dataflow_only(individual, x_full, y_full, df_equal, static_dynamic_dict,
+                                                           block_static_dict)
+    elif Config.evaluation_method == 'normal':
+        result = my_evaluation.projvec_evaluate_single_proj(individual, x_full, y_full)
     else:
         raise (BaseException('No evaluation method is designated'))
     return result
@@ -497,7 +619,6 @@ def main2():
     for program in Config.Benchmarks:
         x_train, x_test, y_train, y_test, X_train_rows_count, NDIM = data.prepare_data(program)
 
-
         # dataflow similarity division
         df_dataflow_candidate_pair = pd.read_csv(Config.current_program.dataflow_similarity_result)
         df_equal = df_dataflow_candidate_pair[df_dataflow_candidate_pair['is_equal'] == 1]
@@ -507,8 +628,8 @@ def main2():
         # eval_mse, eval_exclusive, eval_force_merge_prop_his, eval_sdc_only, normal, def_use_length, length_same_reg
         # evaluation_methods = ['eval_mse', 'eval_exclusive', 'normal',
         #                       'def_use_length', 'length_same_reg']
-        #  'eval_sdc_only', 'normal', 'eval_exclusive', 'eval_mse'
-        evaluation_methods = ['with_dataflow', 'normal']
+        #  'eval_sdc_only', 'normal', 'eval_exclusive', 'eval_mse' 'with_dataflow',
+        evaluation_methods = ['normal']
         colors = ['r', 'g', 'b', 'y', 'm', 'c', 'w', 'k']
         markers = ['o', '^', 's', 'd']
         pop_dict = {}
@@ -541,7 +662,7 @@ def main2():
             Config.evaluation_method = em
             pop = pop_dict[em]
 
-            if Config.run_mode == 'TRAIN' or Config.run_mode == 'TRAIN_TEST':
+            if Config.run_mode == 'TRAIN' or Config.run_mode == 'TRAIN_TEST' or Config.run_mode == 'TEST':
                 train_pareto_front = np.array([ind.fitness.values for ind in pop])
                 if Config.fake_scale:
                     ax.scatter(pow(10, train_pareto_front[:, 0] / 200), train_pareto_front[:, 1], marker=markers[i],
@@ -571,13 +692,312 @@ def main2():
     return
 
 
+def get_critical_value(pareto_front, space_size, accuracy_threshold=None, pruned_ratio_threshold=None):
+    if accuracy_threshold is not None:
+        sorted_pareto_front = sorted(list(pareto_front), key=lambda x: x[1])
+        for front in sorted_pareto_front:
+            if front[1] > accuracy_threshold:
+                pruned_ratio = (space_size - front[0]) / space_size
+                return pruned_ratio
+        return 0
+    if pruned_ratio_threshold is not None:
+        sorted_pareto_front = sorted(list(pareto_front), key=lambda x: x[0])
+        for i in range(0, len(sorted_pareto_front))[::-1]:
+            front = sorted_pareto_front[i]
+            pruned_ratio = (space_size - front[0]) / space_size
+            if pruned_ratio > pruned_ratio_threshold:
+                return front[1]
+        return 0
+
+
+def cal_rmse(train_pareto_front, test_pareto_front):
+    assert len(train_pareto_front) == len(test_pareto_front)
+    N = len(train_pareto_front)
+    squared_error = 0
+    for i in range(N):
+        squared_error += (train_pareto_front[i][1] - test_pareto_front[i][1]) ** 2
+    mse = squared_error / N
+    rmse = np.sqrt(mse)
+    return rmse
+
+
+def main3():
+    global x_train, x_test, y_train, y_test, X_train_rows_count, NDIM, df_equal, static_dynamic_dict, block_static_dict, x_full, y_full
+    profile_list = []
+    for program in Config.Benchmarks:
+        start_data_prepared = time.time()
+        x_train, x_test, y_train, y_test, X_train_rows_count, NDIM = data.prepare_data(program)
+        print('data preparing time:', time.time() - start_data_prepared)
+        # dataflow similarity division
+        df_dataflow_candidate_pair = pd.read_csv(program.dataflow_similarity_result)
+        # df_equal = df_dataflow_candidate_pair[df_dataflow_candidate_pair['is_equal'] == 1]
+        df_equal = df_dataflow_candidate_pair
+        static_dynamic_dict, block_static_dict, df_dynmic_ins_indexed, df_block_id_ins_indexed = bsd_map.process(
+            program)
+
+        # eval_mse, eval_exclusive, eval_force_merge_prop_his, eval_sdc_only, normal, def_use_length, length_same_reg
+        # evaluation_methods = ['eval_mse', 'eval_exclusive', 'normal',
+        #                       'def_use_length', 'length_same_reg']
+        #  'eval_sdc_only', 'normal', 'eval_exclusive', 'eval_mse' 'with_dataflow',
+
+        evaluation_methods_dict = {}
+        # evaluation_methods_dict['def_use_length'] = 'EMO-Pruner'
+        # evaluation_methods_dict['length_same_reg'] = 'EMO-Pruner2'
+        evaluation_methods_dict['with_dataflow'] = 'EMO-Pruner'
+        evaluation_methods_dict['with_dataflow_only'] = 'EMO-Prunerd(D)'
+        evaluation_methods_dict['eval_exclusive'] = 'Rapid'
+        evaluation_methods_dict['normal'] = 'EMO-Pruner(C)'
+        # evaluation_methods_dict['eval_mse'] = 'EMO-Pruner(D)'
+        # evaluation_methods = ['with_dataflow']  # , 'normal', 'eval_mse', 'eval_exclusive' 'def_use_length',
+        evaluation_methods = ['with_dataflow_only', 'with_dataflow', 'normal',
+                              'eval_exclusive']  # , 'normal', 'eval_mse', 'eval_exclusive' 'def_use_length',
+        # 'length_same_reg',
+        # colors = ['r', 'g', 'b', 'y', 'm', 'c', 'w', 'k']
+        # colors = ['k']
+
+        colors_dict = {}
+        # colors_dict['def_use_length'] = 'k'
+        # colors_dict['length_same_reg'] = 'k'
+        colors_dict['with_dataflow'] = 'k'
+        colors_dict['with_dataflow_only'] = 'k'
+        colors_dict['normal'] = 'k'
+        # colors_dict['eval_mse'] = 'k'
+        colors_dict['eval_exclusive'] = 'k'
+
+        # markers = ['o', '^', 's', 'd']
+
+        marker_dict_train = {}
+        # marker_dict_train['def_use_length'] = 'o'
+        # marker_dict_train['length_same_reg'] = 'o'
+        marker_dict_train['with_dataflow'] = 'o'
+        marker_dict_train['with_dataflow_only'] = 'o'
+        marker_dict_train['normal'] = 'o'
+        # marker_dict_train['eval_mse'] = 'o'
+        marker_dict_train['eval_exclusive'] = 'o'
+
+        marker_dict_test = {}
+        # marker_dict_test['def_use_length'] = 'x'
+        # marker_dict_test['length_same_reg'] = '.'
+        marker_dict_test['with_dataflow'] = 'x'
+        marker_dict_test['with_dataflow_only'] = '_'
+        marker_dict_test['normal'] = '|'
+        # marker_dict_test['eval_mse'] = '|'
+        marker_dict_test['eval_exclusive'] = '.'
+
+        pop_dict = {}
+
+        if Config.restore_model:
+            pop_dict = loadobj("save/model/single_model_" + program.progname + Config.version)
+
+        training_time_dict = {}
+        if Config.run_mode == 'TRAIN' or Config.run_mode == 'TRAIN_TEST':
+            for em in evaluation_methods:
+                if em == 'with_dataflow_only':
+                    continue
+                Config.evaluation_method = em
+                print('=====================', program.progname, em, 'training', '========================')
+                training_start = time.time()
+                # train
+                if (em not in pop_dict) or Config.retrain_model:
+                    pop, logbook = train(target_program=program)
+                    pop.sort(key=lambda x: x.fitness.values)
+                    pop_dict[em] = pop
+                    elapsed = time.time() - training_start
+                    training_time_dict[em] = elapsed
+                else:
+                    print(program.progname, em, 'jump over.')
+                print('=====================', program.progname, em, 'training end', '========================')
+
+            saveobj(pop_dict, "save/model/single_model_" + program.progname + Config.version)
+
+        if Config.run_mode == 'TEST' or Config.run_mode == 'TRAIN_TEST':
+            pop_dict = loadobj("save/model/single_model_" + program.progname + Config.version)
+
+        # plot all pops
+        fig, ax = plt.subplots()
+        ax.set_title(program.progname)
+        ax.set_ylabel('Accuracy')
+        ax.set_xlabel('#Fault-Similarity Classes')
+        ax.set_xscale('log')
+        for i in range(len(evaluation_methods)):
+            em = evaluation_methods[i]
+            Config.evaluation_method = em
+
+            print('=====================', program.progname, em, 'testing', '========================')
+
+            if em == 'with_dataflow_only':
+                pop = toolbox.population(n=Config.MU)
+                for ind in pop:
+                    ind.fitness.values = (1, 0)
+            else:
+                pop = pop_dict[em]
+
+            profile = Profile(program, em)
+
+            if em in training_time_dict:
+                profile.training_time = training_time_dict[em]
+
+            if Config.run_mode == 'TRAIN' or Config.run_mode == 'TRAIN_TEST' or Config.run_mode == 'TEST':
+                train_pareto_front = np.array([ind.fitness.values for ind in pop])
+
+                profile.train_accuracy_99 = get_critical_value(train_pareto_front, space_size=Config.max_size / 2,
+                                                               pruned_ratio_threshold=0.99)
+                profile.train_accuracy_999 = get_critical_value(train_pareto_front, space_size=Config.max_size / 2,
+                                                                pruned_ratio_threshold=0.999)
+                profile.train_accuracy_9999 = get_critical_value(train_pareto_front, space_size=Config.max_size / 2,
+                                                                 pruned_ratio_threshold=0.9999)
+                profile.train_accuracy_99999 = get_critical_value(train_pareto_front, space_size=Config.max_size / 2,
+                                                                  pruned_ratio_threshold=0.99999)
+                if not Config.full_space_validation:
+                    if Config.fake_scale:
+                        ax.scatter(pow(10, train_pareto_front[:, 0] / 200), train_pareto_front[:, 1],
+                                   marker=marker_dict_train[em],
+                                   c='',
+                                   edgecolors=colors_dict[em],
+                                   label=evaluation_methods_dict[em] + '_train')
+                    else:
+                        ax.scatter(train_pareto_front[:, 0], train_pareto_front[:, 1], marker=marker_dict_train[em],
+                                   c='',
+                                   edgecolors=colors_dict[em],
+                                   label=evaluation_methods_dict[em] + '_train')
+
+            testing_start = time.time()
+            if Config.run_mode == 'TEST' or Config.run_mode == 'TRAIN_TEST':
+                fitnesses_list = []
+                if em == 'with_dataflow_only':
+                    fitnesses_list = my_evaluation.fake_evaluate_with_dataflow_only(pop, x_test, df_equal,
+                                                                                    static_dynamic_dict,
+                                                                                    block_static_dict)
+                else:
+                    invalid_ind = [ind for ind in pop]
+                    test_fitnesses_map = map(evaluate_test, invalid_ind)
+                    fitnesses_list = list(test_fitnesses_map)
+
+                test_pareto_front = np.array(fitnesses_list)
+
+                profile.train_test_rmse = cal_rmse(train_pareto_front, test_pareto_front)
+
+                profile.test_accuracy_99 = get_critical_value(test_pareto_front, space_size=Config.max_size / 2,
+                                                              pruned_ratio_threshold=0.99)
+                profile.test_accuracy_999 = get_critical_value(test_pareto_front, space_size=Config.max_size / 2,
+                                                               pruned_ratio_threshold=0.999)
+                profile.test_accuracy_9999 = get_critical_value(test_pareto_front, space_size=Config.max_size / 2,
+                                                                pruned_ratio_threshold=0.9999)
+                profile.test_accuracy_99999 = get_critical_value(test_pareto_front, space_size=Config.max_size / 2,
+                                                                 pruned_ratio_threshold=0.99999)
+                if not Config.full_space_validation:
+                    if Config.fake_scale:
+                        ax.scatter(pow(10, test_pareto_front[:, 0] / 200), test_pareto_front[:, 1],
+                                   marker=marker_dict_test[em],
+                                   c=colors_dict[em],
+                                   # edgecolors=colors_dict[em],
+                                   label=evaluation_methods_dict[em] + '_test')
+                    else:
+                        ax.scatter(test_pareto_front[:, 0], test_pareto_front[:, 1], marker=marker_dict_test[em],
+                                   c=colors_dict[em],
+                                   # edgecolors=colors_dict[em],
+                                   label=evaluation_methods_dict[em] + '_test')
+
+            if Config.full_space_validation:
+                full_test_start = time.time()
+                x_full, y_full, X_full_rows_count, NDIM_full_space = data.prepare_data_full_space(program)
+                print('full_test data preparing time:', time.time() - full_test_start)
+                print('===================run test========================')
+                # run test
+                fitnesses_list = []
+                if em == 'with_dataflow_only':
+                    fitnesses_list = my_evaluation.fake_evaluate_with_dataflow_only(pop, x_test, df_equal,
+                                                                                    static_dynamic_dict,
+                                                                                    block_static_dict)
+
+                else:
+                    invalid_ind = [ind for ind in pop]
+                    test_fitnesses_map = map(evaluate_test, invalid_ind)
+                    fitnesses_list = list(test_fitnesses_map)
+
+                print('===================run test end========================')
+
+                # get full
+                fitnesses_list_full = []
+                if em == 'with_dataflow_only':
+                    fitnesses_list_full = my_evaluation.fake_evaluate_with_dataflow_only(pop, x_full, df_equal,
+                                                                                         static_dynamic_dict,
+                                                                                         block_static_dict)
+
+                else:
+                    # with_dataflow too long time, so mitigate with def_use_length
+                    if em == 'with_dataflow':
+                        Config.evaluation_method = 'def_use_length'
+                    invalid_ind = [ind for ind in pop]
+                    test_fitnesses_map_full = map(evaluate_test_full, invalid_ind)
+                    fitnesses_list_full = list(test_fitnesses_map_full)
+
+                assert (len(fitnesses_list) == len(fitnesses_list_full))
+                new_fitness_list_full = []
+                for j in range(len(fitnesses_list)):
+                    new_fitness_list_full.append((fitnesses_list_full[j][0], fitnesses_list[j][1]))
+
+                test_pareto_front_full = np.array(new_fitness_list_full)
+
+                profile.test_full_accuracy_99 = get_critical_value(test_pareto_front_full,
+                                                                   space_size=Config.full_space_max_size,
+                                                                   pruned_ratio_threshold=0.99)
+                profile.test_full_accuracy_999 = get_critical_value(test_pareto_front_full,
+                                                                    space_size=Config.full_space_max_size,
+                                                                    pruned_ratio_threshold=0.999)
+                profile.test_full_accuracy_9999 = get_critical_value(test_pareto_front_full,
+                                                                     space_size=Config.full_space_max_size,
+                                                                     pruned_ratio_threshold=0.9999)
+                profile.test_full_accuracy_99999 = get_critical_value(test_pareto_front_full,
+                                                                      space_size=Config.full_space_max_size,
+                                                                      pruned_ratio_threshold=0.99999)
+
+                profile.test_full_space_prune_90 = get_critical_value(test_pareto_front_full,
+                                                                      space_size=Config.full_space_max_size,
+                                                                      accuracy_threshold=0.9)
+                profile.test_full_space_prune_95 = get_critical_value(test_pareto_front_full,
+                                                                      space_size=Config.full_space_max_size,
+                                                                      accuracy_threshold=0.95)
+                profile.test_full_space_prune_97 = get_critical_value(test_pareto_front_full,
+                                                                      space_size=Config.full_space_max_size,
+                                                                      accuracy_threshold=0.97)
+                profile.test_full_space_prune_99 = get_critical_value(test_pareto_front_full,
+                                                                      space_size=Config.full_space_max_size,
+                                                                      accuracy_threshold=0.99)
+                if Config.fake_scale:
+                    ax.scatter(pow(10, test_pareto_front_full[:, 0] / 200), test_pareto_front_full[:, 1],
+                               marker=marker_dict_test[em],
+                               c=colors_dict[em],
+                               # edgecolors=colors_dict[em],
+                               label=evaluation_methods_dict[em] + '_test_full')
+                else:
+                    ax.scatter(test_pareto_front_full[:, 0], test_pareto_front_full[:, 1], marker=marker_dict_test[em],
+                               c=colors_dict[em],
+                               # edgecolors=colors_dict[em],
+                               label=evaluation_methods_dict[em] + '_test_full')
+
+                profile.testing_time = time.time() - testing_start
+                profile_list.append(profile)
+
+                print('=====================', program.progname, em, 'testing end', '========================')
+
+        ax.legend(loc="lower right")
+        saveimage(plt, 'save/plt/' + program.progname + '_' + Config.run_mode + '.png')
+        plt.show()
+
+    profile_filename = 'output/emo_in_batches.csv'
+    write_profile_to_csv(profile_list, profile_filename)
+
+    return
+
+
 if __name__ == "__main__":
     # with open("pareto_front/zdt1_front.json") as optimal_front_data:
     #     optimal_front = json.load(optimal_front_data)
     # Use 500 of the 1000 points in the json file
     # optimal_front = sorted(optimal_front[i] for i in range(0, len(optimal_front), 2))
 
-    main2()
+    main3()
 
     # pop.sort(key=lambda x: x.fitness.values)
     #

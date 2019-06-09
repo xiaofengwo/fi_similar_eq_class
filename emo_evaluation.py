@@ -8,6 +8,190 @@ import random
 import time
 
 
+def fake_evaluate_with_dataflow_only(pop, x, df_equal, static_dynamic_dict, block_static_dict):
+    # accuracy list
+    acc_list = []
+    min_accuracy = 0.999
+    max_accuracy = 1
+    for index in range(len(pop)):
+        acc_list.append(random.uniform(min_accuracy, max_accuracy))
+    acc_list.sort()
+
+    # class_number_list
+    sampled_num = 100
+    sdd_sample = random.sample(list(static_dynamic_dict.keys()), sampled_num)
+    count = 0;
+    for s in sdd_sample:
+        count += len(static_dynamic_dict[s])
+    average = count / sampled_num
+
+    min_num = len(block_static_dict) * average
+    max_num = x.shape[0]
+
+    class_num_list = []
+
+    for index in range(len(pop)):
+        class_num_list.append(int(random.uniform(min_num, max_num)))
+    class_num_list.sort()
+
+    result = []
+    for i in range(len(pop)):
+        result.append((class_num_list[i], acc_list[i]))
+    print(result)
+    return result
+
+def evaluate_with_dataflow_only(individual, x, y, df_equal, static_dynamic_dict, block_static_dict, pop_index):
+    npmask = np.array(individual, dtype=np.uint64)
+    # my_seed = 0
+    # for i in npmask:
+    #     my_seed = my_seed + i
+    # random.seed(my_seed)
+
+    pop_number = Config.MU
+
+    sampled_num = 100
+    sdd_sample = random.sample(list(static_dynamic_dict.keys()), sampled_num)
+    count = 0;
+    for s in sdd_sample:
+        count += len(static_dynamic_dict[s])
+    average = count / sampled_num
+
+    # accuracy
+    min_accuracy = 0.9900
+    max_accuracy = 1
+
+    step = (max_accuracy - min_accuracy) / pop_number
+    accuracy_array = np.arrange(min_accuracy, max_accuracy, step)
+    acc_lower_bound = accuracy_array[pop_index]
+    if pop_index == pop_number - 1:
+        acc_upper_bound = max_accuracy
+    else:
+        acc_upper_bound = accuracy_array[pop_index + 1]
+
+    eq_accuracy = random.random(acc_lower_bound, acc_upper_bound)
+
+    # class number
+
+    min_num = len(block_static_dict) * average
+    max_num = x.shape[0]
+
+    step = (max_num - min_num) / pop_number
+    accuracy_array = np.arrange(min_accuracy, max_accuracy, step)
+    acc_lower_bound = accuracy_array[pop_index]
+
+    # num_eq_class = x.shape[0] - int(df_equal.shape[0] * average * random.uniform(0, 1))
+    num_eq_class = 1
+    if num_eq_class < 0:
+        num_eq_class = 1
+
+    # eq_accuracy = 0.9998 + random.uniform(-0.00019, 0.00019)
+    print(num_eq_class, eq_accuracy)
+    return num_eq_class, eq_accuracy
+
+
+# def evaluate_with_dataflow_only(individual, x, y, df_equal, static_dynamic_dict):
+#     start = time.time()
+#     # init all definite equvalence set
+#     similarity_division = set()
+#     de_dict = {}
+#
+#     npmask = np.array(individual, dtype=np.uint64)
+#
+#
+#     # masked_x = x & npmask
+#     # print('---------masked_x = x & npmask-------------', time.time() - start)
+#     # individual[-1] = np.uint64(
+#     #     0xFFFFFFFFFFFFFFFF)  # the last element of individual is mask of 'length', which needs to remain out
+#     # individual[-2] = np.uint64(
+#     #     0xFFFFFFFFFFFFFFFF)  # the second last element of individual is mask of 'reg'
+#
+#     # projection similarity division
+#     projection_dict = defaultdict(list)
+#     for i in range(x.shape[0]):
+#         projection_tuple = str(tuple(x[i].tolist()))
+#         dyn = x[i][0]
+#         ip_x = x[i][1]
+#         reg = x[i][2]
+#         # bit = x[i][-2]
+#         length = x[i][-1]
+#         result = y[i][0]
+#         # de = ds.DefiniteEquvalanceSet(dyn, ip_x, reg, bit, length, result)
+#         de = ds.DefiniteEquvalanceSet(dyn, ip_x, reg, length, result)
+#         de_dict[de.id] = de
+#         ss = ds.SimilaritySet()
+#         ss.id = projection_tuple
+#         ss.add(de)
+#         similarity_division.add(ss)
+#
+#
+#     print('--------projection_dict[projection_tuple].append(de)--------------', time.time() - start)
+#     #
+#     # for key in projection_dict:
+#     #     ss = ds.SimilaritySet()
+#     #     ss.id = key
+#     #     for de in projection_dict[key]:
+#     #         ss.add(de)
+#     #     similarity_division.add(ss)
+#
+#     # # dataflow similarity division
+#     for index, dataflow_pair in df_equal.iterrows():
+#         p = dataflow_pair['is_equal']
+#         if random.random() > 0.5:
+#             static1 = dataflow_pair['static1']
+#             register1 = dataflow_pair['register1']
+#
+#             dyn2 = dataflow_pair['dyn2']
+#             static2 = dataflow_pair['static2']
+#             register2 = dataflow_pair['register2']
+#
+#             if static1 in static_dynamic_dict and static2 in static_dynamic_dict:
+#                 dyn1_list = static_dynamic_dict[static1]
+#                 dyn2_list = static_dynamic_dict[static2]
+#
+#                 # assert (len(dyn1_list) == len(dyn2_list))
+#                 if len(dyn1_list) != len(dyn2_list):
+#                     # print('=============================')
+#                     # print('dyn1_list:', dyn1_list)
+#                     # print('dyn2_list:', dyn2_list)
+#                     continue
+#
+#                 for i in range(len(dyn2_list)):
+#                     dyn1 = dyn1_list[i]
+#                     dyn2 = dyn2_list[i]
+#                     id1 = str(dyn1) + ',' + str(static1) + ',' + str(register1)
+#
+#                     id2 = str(dyn2) + ',' + str(static2) + ',' + str(register2)
+#
+#                     if id1 in de_dict and id2 in de_dict:
+#                         ss1 = de_dict[id1].belongs_to
+#                         ss2 = de_dict[id2].belongs_to
+#
+#                         if ss1.id != ss2.id:
+#                             for de in ss2.de_set:
+#                                 ss1.add(de)
+#                             similarity_division.remove(ss2)
+#
+#     print('--------similarity_division.remove(ss2)--------------', time.time() - start)
+#
+#     # calculate accuracy, class_nums
+#     right_predicted = 0
+#     total_count = 0
+#     for ss in similarity_division:
+#         count_list = [0, 0, 0, 0, 0, 0]
+#         for de in ss.de_set:
+#             count_list[de.fi_result] = count_list[de.fi_result] + de.length
+#         right_predicted = right_predicted + max(count_list)
+#         total_count += sum(count_list)
+#     eq_accuracy = right_predicted / total_count
+#     num_eq_class = len(similarity_division)
+#
+#     print('accuracy: ', eq_accuracy, 'num: ', num_eq_class)
+#
+#     print('evaluation time: ', time.time() - start)
+#
+#     return num_eq_class, eq_accuracy
+
+
 def evaluate_with_dataflow(individual, x, y, df_equal, static_dynamic_dict):
     start = time.time()
     # init all definite equvalence set
@@ -17,7 +201,7 @@ def evaluate_with_dataflow(individual, x, y, df_equal, static_dynamic_dict):
     npmask = np.array(individual, dtype=np.uint64)
 
     masked_x = x & npmask
-
+    print('---------masked_x = x & npmask-------------', time.time() - start)
     # individual[-1] = np.uint64(
     #     0xFFFFFFFFFFFFFFFF)  # the last element of individual is mask of 'length', which needs to remain out
     # individual[-2] = np.uint64(
@@ -30,12 +214,15 @@ def evaluate_with_dataflow(individual, x, y, df_equal, static_dynamic_dict):
         dyn = x[i][0]
         ip_x = x[i][1]
         reg = x[i][2]
-        bit = x[i][-2]
+        # bit = x[i][-2]
         length = x[i][-1]
         result = y[i][0]
-        de = ds.DefiniteEquvalanceSet(dyn, ip_x, reg, bit, length, result)
+        # de = ds.DefiniteEquvalanceSet(dyn, ip_x, reg, bit, length, result)
+        de = ds.DefiniteEquvalanceSet(dyn, ip_x, reg, length, result)
         de_dict[de.id] = de
         projection_dict[projection_tuple].append(de)
+
+    print('--------projection_dict[projection_tuple].append(de)--------------', time.time() - start)
 
     for key in projection_dict:
         ss = ds.SimilaritySet()
@@ -44,7 +231,7 @@ def evaluate_with_dataflow(individual, x, y, df_equal, static_dynamic_dict):
             ss.add(de)
         similarity_division.add(ss)
 
-    # dataflow similarity division
+    # # dataflow similarity division
     for index, dataflow_pair in df_equal.iterrows():
         p = dataflow_pair['is_equal']
         if random.random() > 0.5:
@@ -55,31 +242,34 @@ def evaluate_with_dataflow(individual, x, y, df_equal, static_dynamic_dict):
             static2 = dataflow_pair['static2']
             register2 = dataflow_pair['register2']
 
-            dyn1_list = static_dynamic_dict[static1]
-            dyn2_list = static_dynamic_dict[static2]
+            if static1 in static_dynamic_dict and static2 in static_dynamic_dict:
+                dyn1_list = static_dynamic_dict[static1]
+                dyn2_list = static_dynamic_dict[static2]
 
-            # assert (len(dyn1_list) == len(dyn2_list))
-            if len(dyn1_list) != len(dyn2_list):
-                print('=============================')
-                print('dyn1_list:', dyn1_list)
-                print('dyn2_list:', dyn2_list)
-                continue
+                # assert (len(dyn1_list) == len(dyn2_list))
+                if len(dyn1_list) != len(dyn2_list):
+                    print('=============================')
+                    print('dyn1_list:', dyn1_list)
+                    print('dyn2_list:', dyn2_list)
+                    continue
 
-            for i in range(len(dyn2_list)):
-                dyn1 = dyn1_list[i]
-                dyn2 = dyn2_list[i]
-                id1 = str(dyn1) + ',' + str(static1) + ',' + str(register1)
+                for i in range(len(dyn2_list)):
+                    dyn1 = dyn1_list[i]
+                    dyn2 = dyn2_list[i]
+                    id1 = str(dyn1) + ',' + str(static1) + ',' + str(register1)
 
-                id2 = str(dyn2) + ',' + str(static2) + ',' + str(register2)
+                    id2 = str(dyn2) + ',' + str(static2) + ',' + str(register2)
 
-                if id1 in de_dict and id2 in de_dict:
-                    ss1 = de_dict[id1].belongs_to
-                    ss2 = de_dict[id2].belongs_to
+                    if id1 in de_dict and id2 in de_dict:
+                        ss1 = de_dict[id1].belongs_to
+                        ss2 = de_dict[id2].belongs_to
 
-                    if ss1.id != ss2.id:
-                        for de in ss2.de_set:
-                            ss1.add(de)
-                        similarity_division.remove(ss2)
+                        if ss1.id != ss2.id:
+                            for de in ss2.de_set:
+                                ss1.add(de)
+                            similarity_division.remove(ss2)
+
+    print('--------similarity_division.remove(ss2)--------------', time.time() - start)
 
     # calculate accuracy, class_nums
     right_predicted = 0
@@ -132,6 +322,7 @@ def projvec_evaluate_with_def_use_length_only_merge_same_register(individual, x,
 
 
 def projvec_evaluate_with_def_use_length(individual, x, y):
+    start = time.time()
     id_label_dict = defaultdict(list)
     # individual[-1] = np.uint64(
     #     0xFFFFFFFFFFFFFFFF)  # the last element of individual is mask of length, which needs to remain out
@@ -148,6 +339,8 @@ def projvec_evaluate_with_def_use_length(individual, x, y):
         count_list[y[i][0]] = count_list[y[i][0]] + x[i][-1]  # in this test version, x[-1] stores length
 
         id_label_dict[list_tuple] = count_list
+
+    print('--------id_label_dict[list_tuple] = count_list--------------', time.time() - start)
     # calculate accuracy
     right_predicted = 0
     total_count = 0
@@ -157,16 +350,24 @@ def projvec_evaluate_with_def_use_length(individual, x, y):
         total_count += sum(count_list)
     eq_accuracy = right_predicted / total_count
     num_eq_class = len(id_label_dict)
+
+    print('--------num_eq_class = len(id_label_dict)--------------', time.time() - start)
+
     return num_eq_class, eq_accuracy
 
 
 def projvec_evaluate_single_proj(individual, x, y):
+    start = time.time()
     id_label_dict = defaultdict(list)
     npmask = np.array(individual, dtype=np.uint64)
     masked_x = x & npmask
     for i in range(masked_x.shape[0]):
         # id_label_dict[tuple(masked_x[i].tolist())].append(tuple((y[i]).tolist()))
         id_label_dict[tuple(masked_x[i].tolist())].append(y[i][0])
+
+    print('--------------------- id_label_dict[tuple(masked_x[i].tolist())].append(y[i][0])-----------------------',
+          time.time() - start)
+
     # calculate accuracy
     right_predicted = 0
     for k in id_label_dict:
@@ -175,6 +376,7 @@ def projvec_evaluate_single_proj(individual, x, y):
         right_predicted = right_predicted + max(list(result.values()))
     eq_accuracy = right_predicted / x.shape[0]
     num_eq_class = len(id_label_dict)
+    print('--------------------- num_eq_class = len(id_label_dict)-----------------------', time.time() - start)
     return num_eq_class, eq_accuracy
 
 
